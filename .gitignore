@@ -1,0 +1,60 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Test and coverage reports
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+nosetests.xml
+test-results/
+
+# Type checkers and linters
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables and local configuration
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+#GreQ
+.bkp
