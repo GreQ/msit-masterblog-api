@@ -27,7 +27,9 @@ function loadPosts() {
             data.forEach(post => {
                 const postDiv = document.createElement('div');
                 postDiv.className = 'post';
-                postDiv.innerHTML = `<h2>${post.title}</h2><p>${post.content}</p>
+                postDiv.innerHTML = `<h2>${escapeHtml(post.title)}</h2>
+                <p class="post-meta">by ${escapeHtml(post.author)} · ${escapeHtml(post.date)}</p>
+                <p>${escapeHtml(post.content)}</p>
                 <button onclick="deletePost(${post.id})">Delete</button>`;
                 postContainer.appendChild(postDiv);
             });
@@ -41,19 +43,39 @@ function addPost() {
     var baseUrl = document.getElementById('api-base-url').value;
     var postTitle = document.getElementById('post-title').value;
     var postContent = document.getElementById('post-content').value;
+    var postAuthor = document.getElementById('post-author').value;
+    var postDate = document.getElementById('post-date').value;
+
+    var newPost = { title: postTitle, content: postContent, author: postAuthor };
+    // The date is optional, the API defaults to today if it is not sent
+    if (postDate) {
+        newPost.date = postDate;
+    }
 
     // Use the Fetch API to send a POST request to the /posts endpoint
     fetch(baseUrl + '/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: postTitle, content: postContent })
+        body: JSON.stringify(newPost)
     })
-    .then(response => response.json())  // Parse the JSON data from the response
-    .then(post => {
-        console.log('Post added:', post);
+    .then(response => response.json().then(data => ({ ok: response.ok, data: data })))
+    .then(result => {
+        // Show validation errors from the API (e.g. a missing author)
+        if (!result.ok) {
+            alert(result.data.error);
+            return;
+        }
+        console.log('Post added:', result.data);
         loadPosts(); // Reload the posts after adding a new one
     })
     .catch(error => console.error('Error:', error));  // If an error occurs, log it to the console
+}
+
+// Function to escape user text before inserting it as HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
 }
 
 // Function to send a DELETE request to the API to delete a post

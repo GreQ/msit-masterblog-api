@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -6,11 +8,17 @@ app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
 POSTS = [
-    {"id": 1, "title": "First post", "content": "This is the first post."},
-    {"id": 2, "title": "Second post", "content": "This is the second post."},
+    {"id": 1, "title": "First post", "content": "This is the first post.",
+     "author": "Alice", "date": "2023-06-07"},
+    {"id": 2, "title": "Second post", "content": "This is the second post.",
+     "author": "Bob", "date": "2023-06-10"},
 ]
 
-SORT_FIELDS = ("title", "content")
+TEXT_FIELDS = ("title", "content", "author")
+POST_FIELDS = TEXT_FIELDS + ("date",)
+DATE_FORMAT = "%Y-%m-%d"
+
+SORT_FIELDS = POST_FIELDS
 SORT_DIRECTIONS = ("asc", "desc")
 
 # SWAGGER stuff
@@ -40,6 +48,48 @@ def generate_new_id():
     return max((post["id"] for post in POSTS), default=0) + 1
 
 
+def parse_date(value):
+    """Return a date object for a 'YYYY-MM-DD' string, or None if invalid."""
+    try:
+        return datetime.strptime(value, DATE_FORMAT).date()
+    except (TypeError, ValueError):
+        return None
+
+
+def validate_post_fields(data, required):
+    """Return an error message for invalid post data, or None if it is valid.
+
+    With required=True all text fields must be present (create);
+    otherwise only the provided fields are checked (update).
+    """
+    if not isinstance(data, dict):
+        return "Request body must be a JSON object."
+
+    if required:
+        missing_fields = [field for field in TEXT_FIELDS
+                          if field not in data]
+        if missing_fields:
+            return f"Missing required field(s): {', '.join(missing_fields)}"
+
+    for field in TEXT_FIELDS:
+        if field in data and (not isinstance(data[field], str)
+                              or not data[field].strip()):
+            return f"Field '{field}' must be a non-empty string."
+
+    if "date" in data and parse_date(data["date"]) is None:
+        return "Field 'date' must be a valid date in the format YYYY-MM-DD."
+
+    return None
+
+
+def sort_key(sort_field):
+    """Return a key function that sorts posts by the given field."""
+    if sort_field == "date":
+        # Compare real dates, not their string representation
+        return lambda post: parse_date(post["date"])
+    return lambda post: post[sort_field].lower()
+
+
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
     sort_field = request.args.get('sort')
@@ -64,7 +114,7 @@ def get_posts():
 
     sorted_posts = sorted(
         POSTS,
-        key=lambda post: post[sort_field].lower(),
+        key=sort_key(sort_field),
         reverse=(direction == "desc"),
     )
     return jsonify(sorted_posts)
@@ -74,17 +124,19 @@ def get_posts():
 def add_post():
     data = request.get_json(silent=True) or {}
 
-    missing_fields = [field for field in ("title", "content")
-                      if not str(data.get(field) or "").strip()]
-    if missing_fields:
-        return jsonify({
-            "error": f"Missing required field(s): {', '.join(missing_fields)}"
-        }), 400
+    error = validate_post_fields(data, required=True)
+    if error:
+        return jsonify({"error": error}), 400
+
+    # Date is optional and defaults to today
+    post_date = parse_date(data["date"]) if "date" in data else date.today()
 
     new_post = {
         "id": generate_new_id(),
         "title": data["title"],
         "content": data["content"],
+        "author": data["author"],
+        "date": post_date.strftime(DATE_FORMAT),
     }
     POSTS.append(new_post)
     return jsonify(new_post), 201
@@ -109,28 +161,39 @@ def update_post(post_id):
         return jsonify({"error": f"Post with id {post_id} was not found."}), 404
 
     data = request.get_json(silent=True) or {}
+
+    error = validate_post_fields(data, required=False)
+    if error:
+        return jsonify({"error": error}), 400
+
     # Only overwrite the fields that were provided, keep the rest
-    if "title" in data:
-        post["title"] = data["title"]
-    if "content" in data:
-        post["content"] = data["content"]
+    for field in TEXT_FIELDS:
+        if field in data:
+            post[field] = data[field]
+    if "date" in data:
+        # Store the date normalized, e.g. "2023-6-7" -> "2023-06-07"
+        post["date"] = parse_date(data["date"]).strftime(DATE_FORMAT)
 
     return jsonify(post), 200
 
 
 @app.route('/api/posts/search', methods=['GET'])
 def search_posts():
-    title_query = request.args.get('title', '').strip().lower()
-    content_query = request.args.get('content', '').strip().lower()
+    queries = {
+        field: request.args.get(field, '').strip().lower()
+        for field in POST_FIELDS
+    }
+    queries = {field: query for field, query in queries.items() if query}
 
     # No search terms -> nothing to match
-    if not title_query and not content_query:
+    if not queries:
         return jsonify([])
 
+    # A post matches if any of the given fields contains its search term
     results = [
         post for post in POSTS
-        if (title_query and title_query in post["title"].lower())
-        or (content_query and content_query in post["content"].lower())
+        if any(query in post[field].lower()
+               for field, query in queries.items())
     ]
     return jsonify(results)
 

@@ -6,23 +6,39 @@
     "version": "1.0.0"
   },
   "host": "localhost:5002",
-  "schemes": ["http"],
-  "tags": [{ "name": "Post", "description": "Post API - CRUD" }],
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "Post",
+      "description": "Post API - CRUD"
+    }
+  ],
   "paths": {
     "/api/posts": {
       "get": {
         "summary": "Returns all posts",
         "description": "Returns all posts in their original order. If 'sort' or 'direction' is given, the posts are sorted (case-insensitive).",
-        "produces": ["application/json"],
-        "tags": ["Post"],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Post"
+        ],
         "parameters": [
           {
             "name": "sort",
             "in": "query",
-            "description": "Field to sort by",
+            "description": "Field to sort by (date is sorted chronologically)",
             "required": false,
             "type": "string",
-            "enum": ["title", "content"]
+            "enum": [
+              "title",
+              "content",
+              "author",
+              "date"
+            ]
           },
           {
             "name": "direction",
@@ -30,7 +46,10 @@
             "description": "Sort direction (defaults to asc when only 'sort' is given)",
             "required": false,
             "type": "string",
-            "enum": ["asc", "desc"]
+            "enum": [
+              "asc",
+              "desc"
+            ]
           }
         ],
         "responses": {
@@ -38,37 +57,53 @@
             "description": "Successful operation",
             "schema": {
               "type": "array",
-              "items": { "$ref": "#/definitions/Post" }
+              "items": {
+                "$ref": "#/definitions/Post"
+              }
             }
           },
           "400": {
             "description": "Invalid sort field or direction",
-            "schema": { "$ref": "#/definitions/Error" }
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
           }
         }
       },
       "post": {
         "summary": "Creates a new post",
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
-        "tags": ["Post"],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Post"
+        ],
         "parameters": [
           {
             "name": "body",
             "in": "body",
             "description": "The post to create",
             "required": true,
-            "schema": { "$ref": "#/definitions/PostInput" }
+            "schema": {
+              "$ref": "#/definitions/PostInput"
+            }
           }
         ],
         "responses": {
           "201": {
             "description": "Post created",
-            "schema": { "$ref": "#/definitions/Post" }
+            "schema": {
+              "$ref": "#/definitions/Post"
+            }
           },
           "400": {
-            "description": "Missing required field(s)",
-            "schema": { "$ref": "#/definitions/Error" }
+            "description": "Missing or invalid field(s)",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
           }
         }
       }
@@ -77,9 +112,15 @@
       "put": {
         "summary": "Updates an existing post",
         "description": "Only the fields provided in the body are updated; the others keep their current value.",
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
-        "tags": ["Post"],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Post"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -93,24 +134,40 @@
             "in": "body",
             "description": "Fields to update",
             "required": false,
-            "schema": { "$ref": "#/definitions/PostUpdate" }
+            "schema": {
+              "$ref": "#/definitions/PostUpdate"
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "Post updated",
-            "schema": { "$ref": "#/definitions/Post" }
+            "schema": {
+              "$ref": "#/definitions/Post"
+            }
           },
           "404": {
             "description": "Post not found",
-            "schema": { "$ref": "#/definitions/Error" }
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
+          },
+          "400": {
+            "description": "Invalid field value",
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
           }
         }
       },
       "delete": {
         "summary": "Deletes a post",
-        "produces": ["application/json"],
-        "tags": ["Post"],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Post"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -123,21 +180,29 @@
         "responses": {
           "200": {
             "description": "Post deleted",
-            "schema": { "$ref": "#/definitions/Message" }
+            "schema": {
+              "$ref": "#/definitions/Message"
+            }
           },
           "404": {
             "description": "Post not found",
-            "schema": { "$ref": "#/definitions/Error" }
+            "schema": {
+              "$ref": "#/definitions/Error"
+            }
           }
         }
       }
     },
     "/api/posts/search": {
       "get": {
-        "summary": "Searches posts by title and/or content",
-        "description": "Case-insensitive substring search. A post matches if the title OR the content contains the given term. Returns an empty list when no term is given.",
-        "produces": ["application/json"],
-        "tags": ["Post"],
+        "summary": "Searches posts by title, content, author and/or date",
+        "description": "Case-insensitive substring search. A post matches if ANY of the given fields contains its search term. Returns an empty list when no term is given.",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "Post"
+        ],
         "parameters": [
           {
             "name": "title",
@@ -152,6 +217,20 @@
             "description": "Text to search for in the content",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "description": "Text to search for in the author",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Text to search for in the date, e.g. '2023-06'",
+            "required": false,
+            "type": "string"
           }
         ],
         "responses": {
@@ -159,7 +238,9 @@
             "description": "Matching posts",
             "schema": {
               "type": "array",
-              "items": { "$ref": "#/definitions/Post" }
+              "items": {
+                "$ref": "#/definitions/Post"
+              }
             }
           }
         }
@@ -169,26 +250,87 @@
   "definitions": {
     "Post": {
       "type": "object",
-      "required": ["id", "title", "content"],
+      "required": [
+        "id",
+        "title",
+        "content",
+        "author",
+        "date"
+      ],
       "properties": {
-        "id": { "type": "integer", "example": 1 },
-        "title": { "type": "string", "example": "First post" },
-        "content": { "type": "string", "example": "This is the first post." }
+        "id": {
+          "type": "integer",
+          "example": 1
+        },
+        "title": {
+          "type": "string",
+          "example": "First post"
+        },
+        "content": {
+          "type": "string",
+          "example": "This is the first post."
+        },
+        "author": {
+          "type": "string",
+          "example": "Alice"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "example": "2023-06-07",
+          "description": "Date in the format YYYY-MM-DD"
+        }
       }
     },
     "PostInput": {
       "type": "object",
-      "required": ["title", "content"],
+      "required": [
+        "title",
+        "content",
+        "author"
+      ],
       "properties": {
-        "title": { "type": "string", "example": "My new post" },
-        "content": { "type": "string", "example": "Some interesting content." }
+        "title": {
+          "type": "string",
+          "example": "My new post"
+        },
+        "content": {
+          "type": "string",
+          "example": "Some interesting content."
+        },
+        "author": {
+          "type": "string",
+          "example": "Alice"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "example": "2023-06-07",
+          "description": "Date in the format YYYY-MM-DD (defaults to today)"
+        }
       }
     },
     "PostUpdate": {
       "type": "object",
       "properties": {
-        "title": { "type": "string", "example": "Updated title" },
-        "content": { "type": "string", "example": "Updated content." }
+        "title": {
+          "type": "string",
+          "example": "Updated title"
+        },
+        "content": {
+          "type": "string",
+          "example": "Updated content."
+        },
+        "author": {
+          "type": "string",
+          "example": "Alice"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "example": "2023-06-07",
+          "description": "Date in the format YYYY-MM-DD"
+        }
       }
     },
     "Message": {
@@ -203,7 +345,10 @@
     "Error": {
       "type": "object",
       "properties": {
-        "error": { "type": "string", "example": "Post with id 1 was not found." }
+        "error": {
+          "type": "string",
+          "example": "Post with id 1 was not found."
+        }
       }
     }
   }
