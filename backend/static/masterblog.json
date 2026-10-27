@@ -1,0 +1,210 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Masterblog API",
+    "description": "Simple CRUD API for blog posts with sorting and search.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:5002",
+  "schemes": ["http"],
+  "tags": [{ "name": "Post", "description": "Post API - CRUD" }],
+  "paths": {
+    "/api/posts": {
+      "get": {
+        "summary": "Returns all posts",
+        "description": "Returns all posts in their original order. If 'sort' or 'direction' is given, the posts are sorted (case-insensitive).",
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Field to sort by",
+            "required": false,
+            "type": "string",
+            "enum": ["title", "content"]
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "description": "Sort direction (defaults to asc when only 'sort' is given)",
+            "required": false,
+            "type": "string",
+            "enum": ["asc", "desc"]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "schema": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Post" }
+            }
+          },
+          "400": {
+            "description": "Invalid sort field or direction",
+            "schema": { "$ref": "#/definitions/Error" }
+          }
+        }
+      },
+      "post": {
+        "summary": "Creates a new post",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "description": "The post to create",
+            "required": true,
+            "schema": { "$ref": "#/definitions/PostInput" }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Post created",
+            "schema": { "$ref": "#/definitions/Post" }
+          },
+          "400": {
+            "description": "Missing required field(s)",
+            "schema": { "$ref": "#/definitions/Error" }
+          }
+        }
+      }
+    },
+    "/api/posts/{id}": {
+      "put": {
+        "summary": "Updates an existing post",
+        "description": "Only the fields provided in the body are updated; the others keep their current value.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the post to update",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Fields to update",
+            "required": false,
+            "schema": { "$ref": "#/definitions/PostUpdate" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post updated",
+            "schema": { "$ref": "#/definitions/Post" }
+          },
+          "404": {
+            "description": "Post not found",
+            "schema": { "$ref": "#/definitions/Error" }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletes a post",
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the post to delete",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post deleted",
+            "schema": { "$ref": "#/definitions/Message" }
+          },
+          "404": {
+            "description": "Post not found",
+            "schema": { "$ref": "#/definitions/Error" }
+          }
+        }
+      }
+    },
+    "/api/posts/search": {
+      "get": {
+        "summary": "Searches posts by title and/or content",
+        "description": "Case-insensitive substring search. A post matches if the title OR the content contains the given term. Returns an empty list when no term is given.",
+        "produces": ["application/json"],
+        "tags": ["Post"],
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "description": "Text to search for in the title",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "content",
+            "in": "query",
+            "description": "Text to search for in the content",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching posts",
+            "schema": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Post" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Post": {
+      "type": "object",
+      "required": ["id", "title", "content"],
+      "properties": {
+        "id": { "type": "integer", "example": 1 },
+        "title": { "type": "string", "example": "First post" },
+        "content": { "type": "string", "example": "This is the first post." }
+      }
+    },
+    "PostInput": {
+      "type": "object",
+      "required": ["title", "content"],
+      "properties": {
+        "title": { "type": "string", "example": "My new post" },
+        "content": { "type": "string", "example": "Some interesting content." }
+      }
+    },
+    "PostUpdate": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "example": "Updated title" },
+        "content": { "type": "string", "example": "Updated content." }
+      }
+    },
+    "Message": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "example": "Post with id 1 has been deleted successfully."
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "error": { "type": "string", "example": "Post with id 1 was not found." }
+      }
+    }
+  }
+}
