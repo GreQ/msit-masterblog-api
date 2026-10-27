@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 from datetime import date, datetime
 
 from flask import Flask, jsonify, request
@@ -7,7 +10,12 @@ from flask_swagger_ui import get_swaggerui_blueprint
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
-POSTS = [
+# Posts are stored in a JSON file next to this script, so they survive restarts
+POSTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "posts.json")
+
+# Used to create the JSON file if it does not exist yet
+DEFAULT_POSTS = [
     {"id": 1, "title": "First post", "content": "This is the first post.",
      "author": "Alice", "date": "2023-06-07"},
     {"id": 2, "title": "Second post", "content": "This is the second post.",
@@ -35,17 +43,68 @@ swagger_ui_blueprint = get_swaggerui_blueprint(
 app.register_blueprint(swagger_ui_blueprint, url_prefix=SWAGGER_URL)
 
 
-def find_post_by_id(post_id):
+class StorageError(Exception):
+    """Raised when the posts file cannot be read or written."""
+
+
+def load_posts():
+    """Return the list of posts from the JSON file.
+
+    If the file does not exist yet, it is created with DEFAULT_POSTS.
+    Raises StorageError if the file cannot be read or has invalid content.
+    """
+    if not os.path.exists(POSTS_FILE):
+        save_posts(DEFAULT_POSTS)
+        return list(DEFAULT_POSTS)
+
+    try:
+        with open(POSTS_FILE, "r", encoding="utf-8") as file:
+            posts = json.load(file)
+    except json.JSONDecodeError as error:
+        raise StorageError(f"Posts file contains invalid JSON: {error}")
+    except OSError as error:
+        raise StorageError(f"Could not read posts file: {error}")
+
+    if not isinstance(posts, list):
+        raise StorageError("Posts file must contain a JSON list.")
+    return posts
+
+
+def save_posts(posts):
+    """Write the list of posts to the JSON file.
+
+    The data is first written to a temporary file which then replaces the
+    original, so a crash while writing can never leave a half-written file.
+    Raises StorageError if the file cannot be written.
+    """
+    directory = os.path.dirname(POSTS_FILE)
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=directory,
+                                         suffix=".tmp", delete=False) as file:
+            json.dump(posts, file, indent=4)
+            temp_path = file.name
+        os.replace(temp_path, POSTS_FILE)
+    except OSError as error:
+        raise StorageError(f"Could not write posts file: {error}")
+
+
+@app.errorhandler(StorageError)
+def handle_storage_error(error):
+    """Return storage problems as a JSON error instead of an HTML page."""
+    return jsonify({"error": str(error)}), 500
+
+
+def find_post_by_id(posts, post_id):
     """Return the post with the given id, or None if it does not exist."""
-    for post in POSTS:
+    for post in posts:
         if post["id"] == post_id:
             return post
     return None
 
 
-def generate_new_id():
+def generate_new_id(posts):
     """Return a unique integer id (highest existing id + 1)."""
-    return max((post["id"] for post in POSTS), default=0) + 1
+    return max((post["id"] for post in posts), default=0) + 1
 
 
 def parse_date(value):
@@ -92,12 +151,13 @@ def sort_key(sort_field):
 
 @app.route('/api/posts', methods=['GET'])
 def get_posts():
+    posts = load_posts()
     sort_field = request.args.get('sort')
     direction = request.args.get('direction')
 
     # Without sort parameters, keep the original order
     if sort_field is None and direction is None:
-        return jsonify(POSTS)
+        return jsonify(posts)
 
     if sort_field not in SORT_FIELDS:
         return jsonify({
@@ -113,7 +173,7 @@ def get_posts():
         }), 400
 
     sorted_posts = sorted(
-        POSTS,
+        posts,
         key=sort_key(sort_field),
         reverse=(direction == "desc"),
     )
@@ -131,24 +191,28 @@ def add_post():
     # Date is optional and defaults to today
     post_date = parse_date(data["date"]) if "date" in data else date.today()
 
+    posts = load_posts()
     new_post = {
-        "id": generate_new_id(),
+        "id": generate_new_id(posts),
         "title": data["title"],
         "content": data["content"],
         "author": data["author"],
         "date": post_date.strftime(DATE_FORMAT),
     }
-    POSTS.append(new_post)
+    posts.append(new_post)
+    save_posts(posts)
     return jsonify(new_post), 201
 
 
 @app.route('/api/posts/<int:post_id>', methods=['DELETE'])
 def delete_post(post_id):
-    post = find_post_by_id(post_id)
+    posts = load_posts()
+    post = find_post_by_id(posts, post_id)
     if post is None:
         return jsonify({"error": f"Post with id {post_id} was not found."}), 404
 
-    POSTS.remove(post)
+    posts.remove(post)
+    save_posts(posts)
     return jsonify({
         "message": f"Post with id {post_id} has been deleted successfully."
     }), 200
@@ -156,7 +220,8 @@ def delete_post(post_id):
 
 @app.route('/api/posts/<int:post_id>', methods=['PUT'])
 def update_post(post_id):
-    post = find_post_by_id(post_id)
+    posts = load_posts()
+    post = find_post_by_id(posts, post_id)
     if post is None:
         return jsonify({"error": f"Post with id {post_id} was not found."}), 404
 
@@ -174,6 +239,7 @@ def update_post(post_id):
         # Store the date normalized, e.g. "2023-6-7" -> "2023-06-07"
         post["date"] = parse_date(data["date"]).strftime(DATE_FORMAT)
 
+    save_posts(posts)
     return jsonify(post), 200
 
 
@@ -191,7 +257,7 @@ def search_posts():
 
     # A post matches if any of the given fields contains its search term
     results = [
-        post for post in POSTS
+        post for post in load_posts()
         if any(query in post[field].lower()
                for field, query in queries.items())
     ]
