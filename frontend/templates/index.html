@@ -21,6 +21,30 @@
             <input type="date" id="post-date" title="Post date (defaults to today)">
             <button onclick="addPost()">Add Post</button>
         </div>
+        <div class="input-field">
+            <input type="text" id="search-term" placeholder="Search posts"
+                   onkeydown="if (event.key === 'Enter') loadPosts()">
+            <select id="search-field" title="Field to search in">
+                <option value="all">All fields</option>
+                <option value="title">Title</option>
+                <option value="content">Content</option>
+                <option value="author">Author</option>
+                <option value="date">Date</option>
+            </select>
+            <select id="sort-field" title="Sort by" onchange="loadPosts()">
+                <option value="">No sorting</option>
+                <option value="title">Title</option>
+                <option value="content">Content</option>
+                <option value="author">Author</option>
+                <option value="date">Date</option>
+            </select>
+            <select id="sort-direction" title="Sort direction" onchange="loadPosts()">
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+            </select>
+            <button onclick="loadPosts()">Search</button>
+            <button class="secondary" onclick="clearSearch()">Clear</button>
+        </div>
         <div id="post-container">
             <!-- Blog posts will be inserted here by JavaScript -->
         </div>

@@ -9,22 +9,85 @@ window.onload = function() {
     }
 }
 
-// Function to fetch all the posts from the API and display them on the page
+// Function to build the request URL from the search and sort controls
+function buildPostsUrl(baseUrl) {
+    var searchTerm = document.getElementById('search-term').value.trim();
+    var searchField = document.getElementById('search-field').value;
+    var sortField = document.getElementById('sort-field').value;
+    var sortDirection = document.getElementById('sort-direction').value;
+
+    var params = new URLSearchParams();
+
+    // With a search term, use the /posts/search endpoint
+    if (searchTerm) {
+        // "All fields" sends the term for every field, the API matches if any field contains it
+        var fields = searchField === 'all' ? ['title', 'content', 'author', 'date'] : [searchField];
+        fields.forEach(field => params.append(field, searchTerm));
+        return baseUrl + '/posts/search?' + params.toString();
+    }
+
+    // Without a search term, list all posts, sorted if a sort field is chosen
+    if (sortField) {
+        params.append('sort', sortField);
+        params.append('direction', sortDirection);
+        return baseUrl + '/posts?' + params.toString();
+    }
+    return baseUrl + '/posts';
+}
+
+// Function to sort posts in the browser (the search endpoint does not sort)
+function sortPosts(posts) {
+    var sortField = document.getElementById('sort-field').value;
+    var sortDirection = document.getElementById('sort-direction').value;
+    if (!sortField) {
+        return posts;
+    }
+
+    // Dates are in the format YYYY-MM-DD, so comparing them as text keeps the right order
+    var sorted = posts.slice().sort((a, b) =>
+        String(a[sortField]).toLowerCase().localeCompare(String(b[sortField]).toLowerCase()));
+    return sortDirection === 'desc' ? sorted.reverse() : sorted;
+}
+
+// Function to reset the search and sort controls and show all posts again
+function clearSearch() {
+    document.getElementById('search-term').value = '';
+    document.getElementById('search-field').value = 'all';
+    document.getElementById('sort-field').value = '';
+    document.getElementById('sort-direction').value = 'asc';
+    loadPosts();
+}
+
+// Function to fetch the posts from the API and display them on the page
 function loadPosts() {
     // Retrieve the base URL from the input field and save it to local storage
     var baseUrl = document.getElementById('api-base-url').value;
     localStorage.setItem('apiBaseUrl', baseUrl);
 
-    // Use the Fetch API to send a GET request to the /posts endpoint
-    fetch(baseUrl + '/posts')
-        .then(response => response.json())  // Parse the JSON data from the response
-        .then(data => {  // Once the data is ready, we can use it
+    // Use the Fetch API to send a GET request, taking search and sort into account
+    fetch(buildPostsUrl(baseUrl))
+        .then(response => response.json().then(data => ({ ok: response.ok, data: data })))
+        .then(result => {
+            // Show errors from the API (e.g. an invalid sort value)
+            if (!result.ok) {
+                alert(result.data.error);
+                return;
+            }
+
             // Clear out the post container first
             const postContainer = document.getElementById('post-container');
             postContainer.innerHTML = '';
 
+            // The list endpoint already sorts, search results are sorted here
+            const isSearch = document.getElementById('search-term').value.trim() !== '';
+            const posts = isSearch ? sortPosts(result.data) : result.data;
+            if (posts.length === 0) {
+                postContainer.innerHTML = '<p class="no-posts">No posts found.</p>';
+                return;
+            }
+
             // For each post in the response, create a new post element and add it to the page
-            data.forEach(post => {
+            posts.forEach(post => {
                 const postDiv = document.createElement('div');
                 postDiv.className = 'post';
                 postDiv.innerHTML = `<h2>${escapeHtml(post.title)}</h2>
